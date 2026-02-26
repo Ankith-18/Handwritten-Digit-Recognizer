@@ -97,9 +97,29 @@ cd Handwritten-Digit-Recognizer
 python -m venv venv
 venv\Scripts\activate
 
+git clone https://github.com/Ankith-18/Handwritten-Digit-Recognizer.git
+cd Handwritten-Digit-Recognizer
+python -m venv venv
+venv\Scripts\activate
+python -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install streamlit-drawable-canvas
+python 2_data_preprocessing.py
+echo Setup Complete! Run: python 5_prediction_interface_fixed.py or streamlit run 6_web_interface.py
+
 # Linux/Mac
 python3 -m venv venv
 source venv/bin/activate
+
+git clone https://github.com/Ankith-18/Handwritten-Digit-Recognizer.git
+cd Handwritten-Digit-Recognizer
+python3 -m venv venv
+source venv/bin/activate
+python3 -m pip install --upgrade pip
+pip install -r requirements.txt
+pip install streamlit-drawable-canvas
+python3 2_data_preprocessing.py
+echo "Setup Complete! Run: python3 5_prediction_interface_fixed.py or streamlit run 6_web_interface.py"
 
 3. Install Dependencies
 pip install --upgrade pip
@@ -157,5 +177,6 @@ Contributions are welcome! Please feel free to submit a Pull Request. For major 
 Ankit
 GitHub: @Ankith-18
 Project Repository: Handwritten-Digit-Recognizer
+
 
 
