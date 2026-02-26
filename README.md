@@ -27,6 +27,7 @@ Dense layers (256→128) for classification
 Accuracy: 99.48% on test set
 Parameters: 619,114 trainable parameters
 
+
 💻 Technologies Used
 Programming Languages
 Python 3.8+ - Core programming language
@@ -64,4 +65,97 @@ Learning rate reduction on plateau
 Step 5: Prediction Pipeline
 User Input (draw/upload) → Preprocess (28×28, normalize) 
 → Model Inference → Probability Distribution → Final Prediction
+
+🚀 Features
+✅ Real-time digit recognition
+✅ Multiple input methods (draw, upload)
+✅ Confidence scores for predictions
+✅ Probability distribution visualization
+✅ Top-3 predictions display
+✅ Both GUI and Web interfaces
+✅ Data augmentation for better accuracy
+✅ Early stopping to prevent overfitting
+
+<img width="634" height="236" alt="image" src="https://github.com/user-attachments/assets/d6ddc72e-d15b-4506-a655-e527a5a863f1" />
+
+🛠️ Installation Guide for Contributors
+If you fork this repository, follow these steps:
+
+Prerequisites
+Python 3.8 or higher
+pip (Python package manager)
+Git
+4GB+ RAM recommended
+
+Step-by-Step Setup
+1. Clone the Repository
+git clone https://github.com/Ankith-18/Handwritten-Digit-Recognizer.git
+cd Handwritten-Digit-Recognizer
+
+2. Create Virtual Environment
+# Windows
+python -m venv venv
+venv\Scripts\activate
+
+# Linux/Mac
+python3 -m venv venv
+source venv/bin/activate
+
+3. Install Dependencies
+pip install --upgrade pip
+pip install -r requirements.txt
+
+4. Additional Package for Drawing (Web App)
+pip install streamlit-drawable-canvas
+
+5. Run Data Preprocessing
+python 2_data_preprocessing.py
+
+6. Train Models (Optional - Models are included)
+# Train CNN model (best - 10-15 min)
+python 4_cnn_model.py
+
+# OR train MLP model (faster - 2-3 min)
+python 3_simple_model.py
+
+7. Run the Applications
+Desktop GUI:
+python 5_prediction_interface_fixed.py
+Web Interface:
+
+streamlit run 6_web_interface.py
+
+📦 Requirements.txt
+numpy==1.24.3
+pandas==2.0.3
+matplotlib==3.7.2
+seaborn==0.12.2
+scikit-learn==1.3.0
+tensorflow==2.13.0
+opencv-python==4.8.0.74
+pillow==10.0.0
+streamlit==1.25.0
+streamlit-drawable-canvas==0.9.3
+
+🎯 Usage Examples
+Drawing a Digit
+Run python 5_prediction_interface_fixed.py
+Draw a digit (0-9) in the canvas
+Click "Predict Digit"
+View prediction and confidence
+
+Uploading an Image
+Run streamlit run 6_web_interface.py
+Choose "Upload Image"
+Select a digit image
+View results with probability chart
+
+🤝 Contributing
+Contributions are welcome! Please feel free to submit a Pull Request. For major changes, please open an issue first to discuss what you would like to change.
+
+👨‍💻 Author
+Ankit
+GitHub: @Ankith-18
+Project Repository: Handwritten-Digit-Recognizer
+
 
