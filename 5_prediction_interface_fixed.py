@@ -1,107 +1,119 @@
-
-# enhanced_digit_recognizer.py
+# 5_prediction_interface_fixed.py
 import tkinter as tk
+from tkinter import filedialog, messagebox
 import numpy as np
 from tensorflow.keras.models import load_model
-from PIL import Image, ImageDraw
+from PIL import Image, ImageDraw, ImageTk
 import os
 
-class EnhancedDigitRecognizer:
+class DigitRecognizerApp:
     def __init__(self, root):
         self.root = root
-        self.root.title("Digit Recognizer - Write ONE digit at a time!")
-        self.root.geometry("500x600")
+        self.root.title("Handwritten Digit Recognizer")
+        self.root.geometry("800x600")
         
-        # Load model
+        # Create GUI elements first
+        self.create_widgets()
+        
+        # Then load model
         self.load_model()
         
-        # Instructions
-        instructions = tk.Label(
-            root, 
-            text="⚠️ IMPORTANT: Write ONLY ONE digit at a time!\nClear canvas between digits!",
-            font=("Arial", 10, "bold"),
-            fg="red",
-            bg="yellow",
-            pady=5
-        )
-        instructions.pack(fill=tk.X)
+        # Drawing variables
+        self.drawing = False
+        self.last_x = None
+        self.last_y = None
         
-        # Drawing area
-        canvas_frame = tk.Frame(root, bd=2, relief=tk.SUNKEN)
-        canvas_frame.pack(pady=10)
+        # Create a blank image for drawing
+        self.image = Image.new("L", (280, 280), color=255)
+        self.draw = ImageDraw.Draw(self.image)
+    
+    def create_widgets(self):
+        # Main frame
+        main_frame = tk.Frame(self.root, padx=10, pady=10)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Title
+        title_label = tk.Label(
+            main_frame, 
+            text="Handwritten Digit Recognizer",
+            font=("Arial", 16, "bold")
+        )
+        title_label.pack(pady=10)
+        
+        # Canvas for drawing
+        canvas_frame = tk.Frame(main_frame)
+        canvas_frame.pack()
         
         self.canvas = tk.Canvas(
-            canvas_frame, 
-            width=280, 
-            height=280, 
+            canvas_frame,
+            width=280,
+            height=280,
             bg='white',
-            cursor='pencil'
+            cursor='cross'
         )
         self.canvas.pack()
         
         # Bind mouse events
-        self.canvas.bind('<B1-Motion>', self.paint)
-        self.canvas.bind('<ButtonRelease-1>', self.reset)
+        self.canvas.bind('<Button-1>', self.start_draw)
+        self.canvas.bind('<B1-Motion>', self.draw_on_canvas)
+        self.canvas.bind('<ButtonRelease-1>', self.stop_draw)
         
-        # PIL image for processing
-        self.image = Image.new('L', (280, 280), 'white')
-        self.draw = ImageDraw.Draw(self.image)
-        self.last_x, self.last_y = None, None
-        
-        # Button frame
-        btn_frame = tk.Frame(root)
-        btn_frame.pack(pady=10)
+        # Buttons frame
+        button_frame = tk.Frame(main_frame, pady=10)
+        button_frame.pack()
         
         # Predict button
         self.predict_btn = tk.Button(
-            btn_frame,
-            text="🔍 Predict",
-            command=self.predict,
+            button_frame,
+            text="Predict Digit",
+            command=self.predict_digit,
             bg="green",
             fg="white",
-            font=("Arial", 11, "bold"),
             padx=20,
-            pady=5
+            pady=5,
+            font=("Arial", 10, "bold")
         )
         self.predict_btn.pack(side=tk.LEFT, padx=5)
         
         # Clear button
         clear_btn = tk.Button(
-            btn_frame,
-            text="🗑️ Clear",
-            command=self.clear,
+            button_frame,
+            text="Clear Canvas",
+            command=self.clear_canvas,
             bg="red",
             fg="white",
-            font=("Arial", 11, "bold"),
             padx=20,
-            pady=5
+            pady=5,
+            font=("Arial", 10, "bold")
         )
         clear_btn.pack(side=tk.LEFT, padx=5)
         
         # Upload button
         upload_btn = tk.Button(
-            btn_frame,
-            text="📁 Upload",
+            button_frame,
+            text="Upload Image",
             command=self.upload_image,
             bg="blue",
             fg="white",
-            font=("Arial", 11, "bold"),
             padx=20,
-            pady=5
+            pady=5,
+            font=("Arial", 10, "bold")
         )
         upload_btn.pack(side=tk.LEFT, padx=5)
         
         # Result frame
-        result_frame = tk.Frame(root, bd=2, relief=tk.GROOVE, padx=10, pady=10)
-        result_frame.pack(pady=10, fill=tk.X, padx=20)
+        result_frame = tk.Frame(main_frame, pady=10)
+        result_frame.pack()
         
-        self.result_label = tk.Label(
+        # Prediction label
+        self.prediction_label = tk.Label(
             result_frame,
-            text="Draw a digit (0-9) and click Predict",
+            text="Draw a digit or upload an image",
             font=("Arial", 14)
         )
-        self.result_label.pack()
+        self.prediction_label.pack()
         
+        # Confidence label
         self.confidence_label = tk.Label(
             result_frame,
             text="",
@@ -111,55 +123,84 @@ class EnhancedDigitRecognizer:
         
         # Status bar
         self.status_label = tk.Label(
-            root,
+            main_frame,
             text="Ready",
             bd=1,
             relief=tk.SUNKEN,
-            anchor=tk.W
+            anchor=tk.W,
+            font=("Arial", 9)
         )
-        self.status_label.pack(fill=tk.X, side=tk.BOTTOM)
+        self.status_label.pack(fill=tk.X, side=tk.BOTTOM, pady=(10, 0))
     
     def load_model(self):
-        """Load the trained model"""
-        model_files = ['best_cnn_model.h5', 'cnn_digit_recognizer.h5']
-        for model_file in model_files:
-            if os.path.exists(model_file):
-                self.model = load_model(model_file)
-                self.status_label.config(text=f"Model loaded: {model_file}")
-                return
-        self.model = None
-        self.status_label.config(text="No model found!")
+        """Load the trained CNN model"""
+        possible_models = [
+            'best_cnn_model.h5',
+            'cnn_digit_recognizer.h5',
+            'mlp_digit_recognizer.h5'
+        ]
+        
+        model_loaded = False
+        for model_path in possible_models:
+            if os.path.exists(model_path):
+                try:
+                    self.model = load_model(model_path)
+                    self.status_label.config(text=f"✅ Model loaded: {model_path}")
+                    print(f"Loaded model: {model_path}")
+                    model_loaded = True
+                    break
+                except Exception as e:
+                    print(f"Error loading {model_path}: {e}")
+                    continue
+        
+        if not model_loaded:
+            self.model = None
+            self.status_label.config(text="❌ No model found! Please train a model first.")
+            self.predict_btn.config(state=tk.DISABLED)
+            messagebox.showwarning("Warning", "No model found! Please train a model first.")
     
-    def paint(self, event):
-        """Draw on canvas"""
-        if self.last_x and self.last_y:
-            # Draw on tkinter canvas
+    def start_draw(self, event):
+        self.drawing = True
+        self.last_x = event.x
+        self.last_y = event.y
+    
+    def draw_on_canvas(self, event):
+        if self.drawing:
+            x, y = event.x, event.y
+            
+            # Draw on canvas
             self.canvas.create_line(
-                self.last_x, self.last_y, event.x, event.y,
-                width=20, fill='black', capstyle=tk.ROUND, smooth=True
+                self.last_x, self.last_y, x, y,
+                width=15,
+                fill='black',
+                capstyle=tk.ROUND,
+                smooth=True
             )
+            
             # Draw on PIL image
             self.draw.line(
-                [self.last_x, self.last_y, event.x, event.y],
-                fill=0, width=20
+                [self.last_x, self.last_y, x, y],
+                fill=0,
+                width=15
             )
-        self.last_x, self.last_y = event.x, event.y
+            
+            self.last_x = x
+            self.last_y = y
     
-    def reset(self, event):
-        """Reset drawing coordinates"""
-        self.last_x, self.last_y = None, None
+    def stop_draw(self, event):
+        self.drawing = False
     
-    def clear(self):
-        """Clear the canvas"""
+    def clear_canvas(self):
+        """Clear both canvas and PIL image"""
         self.canvas.delete("all")
-        self.image = Image.new('L', (280, 280), 'white')
+        # Reset PIL image
+        self.image = Image.new("L", (280, 280), color=255)
         self.draw = ImageDraw.Draw(self.image)
-        self.result_label.config(text="Draw a digit (0-9) and click Predict")
+        self.prediction_label.config(text="Draw a digit or upload an image")
         self.confidence_label.config(text="")
-        self.status_label.config(text="Canvas cleared")
     
-    def preprocess_image(self):
-        """Convert drawing to model input"""
+    def get_image_array(self):
+        """Convert PIL image to array for prediction"""
         # Resize to 28x28
         img = self.image.resize((28, 28), Image.Resampling.LANCZOS)
         
@@ -167,7 +208,7 @@ class EnhancedDigitRecognizer:
         img_array = np.array(img)
         img_array = img_array.astype('float32') / 255.0
         
-        # Invert (MNIST has white on black)
+        # Invert colors
         img_array = 1.0 - img_array
         
         # Reshape for model
@@ -175,72 +216,161 @@ class EnhancedDigitRecognizer:
         
         return img_array
     
-    def predict(self):
+    def predict_digit(self):
         """Predict the drawn digit"""
         if self.model is None:
-            self.result_label.config(text="No model loaded!")
+            messagebox.showerror("Error", "No model loaded! Please train a model first.")
             return
         
-        # Preprocess
-        img_array = self.preprocess_image()
-        
-        # Predict
-        predictions = self.model.predict(img_array, verbose=0)[0]
-        digit = np.argmax(predictions)
-        confidence = predictions[digit] * 100
-        
-        # Show result
-        self.result_label.config(
-            text=f"Predicted Digit: {digit}",
-            fg="green"
-        )
-        self.confidence_label.config(
-            text=f"Confidence: {confidence:.2f}%"
-        )
-        
-        # Show top 3 predictions
-        top_3 = np.argsort(predictions)[-3:][::-1]
-        top_text = "Top predictions: "
-        for d in top_3:
-            top_text += f"{d} ({predictions[d]*100:.1f}%)  "
-        
-        self.status_label.config(text=top_text)
-        
-        # Warn if multiple digits detected
-        if len(np.where(predictions > 0.1)[0]) > 1:
-            self.status_label.config(
-                text="⚠️ Multiple digits detected! Write only ONE digit at a time.",
-                fg="red"
+        try:
+            # Get image array
+            img_array = self.get_image_array()
+            
+            # Make prediction
+            predictions = self.model.predict(img_array, verbose=0)[0]
+            predicted_digit = np.argmax(predictions)
+            confidence = predictions[predicted_digit] * 100
+            
+            # Update labels
+            self.prediction_label.config(
+                text=f"Predicted Digit: {predicted_digit}",
+                fg="green"
             )
+            self.confidence_label.config(
+                text=f"Confidence: {confidence:.2f}%"
+            )
+            
+            # Show probabilities
+            self.show_probabilities(predictions)
+            
+        except Exception as e:
+            messagebox.showerror("Error", f"Prediction failed: {str(e)}")
+    
+    def show_probabilities(self, predictions):
+        """Show probability for each digit"""
+        prob_window = tk.Toplevel(self.root)
+        prob_window.title("Prediction Probabilities")
+        prob_window.geometry("400x350")
+        
+        # Title
+        tk.Label(
+            prob_window,
+            text="Probability Distribution",
+            font=("Arial", 14, "bold")
+        ).pack(pady=10)
+        
+        # Create frame for probabilities
+        frame = tk.Frame(prob_window)
+        frame.pack(fill=tk.BOTH, expand=True, padx=20, pady=10)
+        
+        for i, prob in enumerate(predictions):
+            row_frame = tk.Frame(frame)
+            row_frame.pack(fill=tk.X, pady=3)
+            
+            # Digit label
+            digit_label = tk.Label(
+                row_frame, 
+                text=f"Digit {i}:", 
+                width=8, 
+                anchor='w',
+                font=("Arial", 10)
+            )
+            digit_label.pack(side=tk.LEFT)
+            
+            # Probability
+            prob_percent = prob * 100
+            prob_label = tk.Label(
+                row_frame, 
+                text=f"{prob_percent:.2f}%", 
+                width=8,
+                font=("Arial", 10, "bold")
+            )
+            prob_label.pack(side=tk.LEFT)
+            
+            # Progress bar
+            bar_frame = tk.Frame(row_frame, height=20, width=200, bg='lightgray')
+            bar_frame.pack(side=tk.LEFT, padx=5)
+            bar_frame.pack_propagate(False)
+            
+            # Fill bar
+            bar_width = int(prob_percent * 2)
+            color = 'green' if i == np.argmax(predictions) else 'blue'
+            
+            bar = tk.Frame(bar_frame, bg=color, width=bar_width, height=20)
+            bar.pack(side=tk.LEFT)
+            bar.pack_propagate(False)
+        
+        # Close button
+        tk.Button(
+            prob_window,
+            text="Close",
+            command=prob_window.destroy,
+            bg="gray",
+            fg="white",
+            padx=20,
+            pady=5
+        ).pack(pady=10)
     
     def upload_image(self):
-        """Upload an image file"""
-        from tkinter import filedialog
+        """Upload and predict from image file"""
+        if self.model is None:
+            messagebox.showerror("Error", "No model loaded!")
+            return
+        
         file_path = filedialog.askopenfilename(
-            filetypes=[("Image files", "*.png *.jpg *.jpeg")]
+            title="Select an image",
+            filetypes=[
+                ("Image files", "*.png *.jpg *.jpeg *.bmp *.gif"),
+                ("All files", "*.*")
+            ]
         )
         
         if file_path:
-            # Load and display image
-            img = Image.open(file_path).convert('L')
-            img.thumbnail((280, 280))
-            
-            # Clear and display
-            self.clear()
-            
-            # Convert to PhotoImage and display
-            from PIL import ImageTk
-            self.photo = ImageTk.PhotoImage(img)
-            self.canvas.create_image(140, 140, image=self.photo)
-            
-            # Update PIL image
-            self.image = img.resize((280, 280))
-            self.draw = ImageDraw.Draw(self.image)
-            
-            # Auto-predict
-            self.predict()
+            try:
+                # Load image
+                img = Image.open(file_path).convert('L')
+                
+                # Clear and display
+                self.clear_canvas()
+                
+                # Resize for display
+                display_img = img.resize((280, 280), Image.Resampling.LANCZOS)
+                self.photo = ImageTk.PhotoImage(display_img)
+                self.canvas.create_image(140, 140, image=self.photo)
+                
+                # Update PIL image
+                self.image = display_img.copy()
+                self.draw = ImageDraw.Draw(self.image)
+                
+                # Preprocess and predict
+                img = img.resize((28, 28), Image.Resampling.LANCZOS)
+                img_array = np.array(img)
+                img_array = img_array.astype('float32') / 255.0
+                img_array = 1.0 - img_array
+                img_array = img_array.reshape(1, 28, 28, 1)
+                
+                # Predict
+                predictions = self.model.predict(img_array, verbose=0)[0]
+                predicted_digit = np.argmax(predictions)
+                confidence = predictions[predicted_digit] * 100
+                
+                self.prediction_label.config(
+                    text=f"Predicted Digit: {predicted_digit}",
+                    fg="green"
+                )
+                self.confidence_label.config(
+                    text=f"Confidence: {confidence:.2f}%"
+                )
+                
+                self.show_probabilities(predictions)
+                
+            except Exception as e:
+                messagebox.showerror("Error", f"Failed to process image: {str(e)}")
+
+def main():
+    root = tk.Tk()
+    app = DigitRecognizerApp(root)
+    root.mainloop()
 
 if __name__ == "__main__":
-    root = tk.Tk()
-    app = EnhancedDigitRecognizer(root)
-    root.mainloop()
+    main()
